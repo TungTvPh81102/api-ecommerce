@@ -186,6 +186,27 @@ class ProductController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            $product = Product::query()->find($id);
+
+            if (!$product) {
+                return response()->json([
+                    'message' => 'Không có dữ liệu'
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $product->delete();
+
+            return response()->noContent();
+        } catch (\Exception $e) {
+            Log::error(__CLASS__ . '@' . __FUNCTION__, [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'message' => 'Lỗi server'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }
