@@ -31,10 +31,10 @@ class StoreCouponRequest extends FormRequest
             'type' => 'required|in:fixed,percent',
             'value' => 'required|numeric|min:0',
             'status' => 'required|in:active,inactive',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date',
+            'start_date' => 'required|date|after_or_equal:today',
+            'expire_date' => 'required|date|after:start_date',
             'max_discount_percentage' => 'required_if:type,percent|numeric|min:0',
-            'min_order_amount' => 'required|numeric|min:0',
+            'min_order_amount' => 'nullable|numeric|min:0',
         ];
     }
 
