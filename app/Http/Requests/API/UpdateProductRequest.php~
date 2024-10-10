@@ -28,13 +28,17 @@ class UpdateProductRequest extends FormRequest
     {
         $product = $this->route('product');
 
+        // Ensure $product is an instance of Product if it is a string
         if (is_string($product)) {
             $product = Product::query()->find($product);
         }
 
+        // Ensure we have a product instance, and get the ID or set it to null
+        $productId = $product ? $product->id : null;
+
         return [
             'category_id' => 'sometimes|required|exists:categories,id',
-            'sku' => 'sometimes|required|string|min:3|max:255|unique:products,sku,' . ($product->id ?? ''),
+            'sku' => 'sometimes|required|string|min:3|max:255|unique:products,sku,' . $productId, // Adjusted for updates
             'name' => 'sometimes|required|string|min:3|max:255',
             'price' => 'sometimes|required|numeric|min:0|regex:/^\d+(\.\d{1,2})?$/',
             'discount_price' => 'nullable|numeric|min:0|regex:/^\d+(\.\d{1,2})?$/',
@@ -46,15 +50,17 @@ class UpdateProductRequest extends FormRequest
             'attributes' => 'sometimes|required|array',
             'attributes.*' => 'exists:attributes,id',
             'variants' => 'sometimes|required|array',
-            'variants.*.sku' => 'required|string|min:3|max:255|unique:products,sku',
+            'variants.*.sku' => 'required|string|min:3|max:255|unique:products,sku,' . $productId, // Adjusted for updates
             'variants.*.price' => 'required|numeric|min:0',
             'variants.*.discount_price' => 'nullable|numeric|min:0',
             'variants.*.stock' => 'required|numeric|min:0',
-            'variants.*.image.*' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg',
+            'variants.*.image.*' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:2048',
             'variants.*.attribute_values' => 'required|array|min:1',
             'variants.*.attribute_values.*.id' => 'required|exists:attribute_values,id',
         ];
     }
+
+
 
     protected function failedValidation(Validator $validator)
     {
