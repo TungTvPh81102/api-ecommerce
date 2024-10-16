@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\API\StoreProductRequest;
 use App\Http\Requests\API\UpdateProductRequest;
 use App\Models\Product;
+use App\Models\Variant;
 use Cloudinary\Cloudinary;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,7 +19,7 @@ class ProductController extends Controller
     protected $cloudinary;
 
     const FOLDER_NAME = 'products';
-    const FOLODER_NAME_VARIANT = 'variants';
+    const FOLDER_NAME_VARIANT = 'variants';
 
     public function __construct()
     {
@@ -86,16 +87,16 @@ class ProductController extends Controller
 
             $product = Product::query()->create($dataProduct);
 
+            $uploadedImages = [];
             if (!empty($dataVariant)) {
                 foreach ($dataVariant as $variant) {
-                    $uploadedImages = [];
                     if (!empty($variant['image'])) {
                         foreach ($variant['image'] as $image) {
                             if ($image->isValid()) {
                                 $uploadResult = $this->cloudinary
                                     ->uploadApi()
                                     ->upload($image->getRealPath(), [
-                                        'folder' => self::FOLODER_NAME_VARIANT
+                                        'folder' => self::FOLDER_NAME_VARIANT
                                     ]);
                                 $uploadedImages[] = $uploadResult['secure_url'];
                             }
@@ -129,6 +130,16 @@ class ProductController extends Controller
                 $this->cloudinary
                     ->uploadApi()
                     ->destroy($publicIdWithFolder);
+            }
+
+            if (!empty($uploadedImages)) {
+                foreach ($uploadedImages as $image) {
+                    $publicId = pathinfo(parse_url($image, PHP_URL_PATH), PATHINFO_FILENAME);
+                    $publicIdWithFolder = self::FOLDER_NAME_VARIANT . '/' . $publicId;
+                    $this->cloudinary
+                        ->uploadApi()
+                        ->destroy($publicIdWithFolder);
+                }
             }
 
             Log::error(__CLASS__ . '@' . __FUNCTION__, [
@@ -186,6 +197,7 @@ class ProductController extends Controller
     {
         try {
             $product = Product::query()->find($id);
+
             if (!$product) {
                 return response()->json([
                     'message' => 'Không có dữ liệu'
@@ -194,48 +206,93 @@ class ProductController extends Controller
 
             $dataProduct = $request->except('variants', 'image');
             $dataVariant = $request->variants;
-            $dataProduct['slug'] = $dataProduct['name'] ? Str::slug($dataProduct['name'], '-') : $product->slug;
+            $dataProduct['slug'] = $dataProduct['name'] ? Str::slug($dataProduct['name'], '-') : null;
 
-            $image = $request->file('image') ?? null;
+            $image = $request->file('image');
 
-            if ($image->isValid()) {
-                $uploadResult = $this->cloudinary
-                    ->uploadApi()
-                    ->upload($image->getRealPath(), [
-                        'folder' => self::FOLDER_NAME
-                    ]);
-                $dataProduct['image'] = $uploadResult['secure_url'];
+            if ($image instanceof \Illuminate\Http\UploadedFile) {
+                if ($image->isValid()) {
+                    $publicId = pathinfo(parse_url($product->image, PHP_URL_PATH), PATHINFO_FILENAME);
+                    $publicIdWithFolder = self::FOLDER_NAME . '/' . $publicId;
+                    $this->cloudinary
+                        ->uploadApi()
+                        ->destroy($publicIdWithFolder);
+
+                    $uploadResult = $this->cloudinary
+                        ->uploadApi()
+                        ->upload($image->getRealPath(), [
+                            'folder' => self::FOLDER_NAME
+                        ]);
+                    $dataProduct['image'] = $uploadResult['secure_url'];
+                } else {
+                    return response()->json([
+                        'message' => 'File không đúng định dạng'
+                    ], Response::HTTP_BAD_REQUEST);
+                }
             } else {
-                return response()->json([
-                    'message' => 'File không đúng định dạng'
-                ], Response::HTTP_BAD_REQUEST);
+                $dataProduct['image'] = $product->image;
             }
 
-            $product = Product::query()->ceate($dataProduct);
+            $product->update($dataProduct);
 
+            $uploadedImages = [];
             if (!empty($dataVariant)) {
                 foreach ($dataVariant as $variant) {
-                    $uploadedImages = [];
-                    if (!empty($variant['image'])) {
-                        foreach ($variant['image'] as $image) {
-                            if ($image->isValid()) {
-                                $uploadResult = $this->cloudinary
-                                    ->uploadApi()
-                                    ->upload($image->getRealPath(), [
-                                        'folder' => self::FOLODER_NAME_VARIANT
+                    $existsVariant = Variant::query()
+                        ->where([
+                            'product_id' => $product->id,
+                            'sku' => $variant['sku'],
+                        ])
+                        ->first();
+
+                    if ($existsVariant) {
+                        if (!empty($variant['image'])) {
+                            foreach ($variant['image'] as $image) {
+                                $oldImage = json_decode($existsVariant->image, true);
+                                if ($image->isValid()) {
+                                    if (!empty($oldImage)) {
+                                        foreach ($oldImage as $old) {
+                                            $publicId = pathinfo(parse_url($old, PHP_URL_PATH), PATHINFO_FILENAME);
+                                            $publicIdWithFolder = self::FOLDER_NAME_VARIANT . '/' . $publicId;
+                                            $this->cloudinary->uploadApi()->destroy($publicIdWithFolder);
+                                        }
+                                    }
+
+                                    $uploadResult = $this->cloudinary->uploadApi()->upload($image->getRealPath(), [
+                                        'folder' => self::FOLDER_NAME_VARIANT
                                     ]);
-                                $uploadedImages[] = $uploadResult['secure_url'];
+
+                                    $uploadedImages[] = $uploadResult['secure_url'];
+                                    $variant['image'] = json_encode($uploadedImages);
+                                }
+                            }
+                        } else {
+                            $variant['image'] = $existsVariant->image;
+                        }
+
+                        $existsVariant->update($variant);
+                    } else {
+                        if (!empty($variant['image'])) {
+                            foreach ($variant['image'] as $image) {
+                                if ($image->isValid()) {
+                                    $uploadResult = $this->cloudinary
+                                        ->uploadApi()
+                                        ->upload($image->getRealPath(), [
+                                            'folder' => self::FOLDER_NAME_VARIANT
+                                        ]);
+                                    $uploadedImages[] = $uploadResult['secure_url'];
+                                }
                             }
                         }
-                    }
 
-                    $variant['image'] = json_encode($uploadedImages);
+                        $variant['image'] = json_encode($uploadedImages);
 
-                    $variantModel = $product->variants()->create($variant);
+                        $variantModel = $product->variants()->create($variant);
 
-                    if (!empty($variant['attribute_values'])) {
-                        foreach ($variant['attribute_values'] as $attributeValue) {
-                            $variantModel->attributeValues()->attach($attributeValue);
+                        if (!empty($variant['attribute_values'])) {
+                            foreach ($variant['attribute_values'] as $attributeValue) {
+                                $variantModel->attributeValues()->attach($attributeValue);
+                            }
                         }
                     }
                 }
@@ -248,6 +305,26 @@ class ProductController extends Controller
                 'data' => $product
             ], Response::HTTP_OK);
         } catch (\Exception $e) {
+            DB::rollBack();
+
+            if (!empty($uploadResult['secure_url'])) {
+                $publicId = pathinfo(parse_url($uploadResult['secure_url'], PHP_URL_PATH), PATHINFO_FILENAME);
+                $publicIdWithFolder = self::FOLDER_NAME . '/' . $publicId;
+                $this->cloudinary
+                    ->uploadApi()
+                    ->destroy($publicIdWithFolder);
+            }
+
+            if (!empty($uploadedImages)) {
+                foreach ($uploadedImages as $image) {
+                    $publicId = pathinfo(parse_url($image, PHP_URL_PATH), PATHINFO_FILENAME);
+                    $publicIdWithFolder = self::FOLDER_NAME_VARIANT . '/' . $publicId;
+                    $this->cloudinary
+                        ->uploadApi()
+                        ->destroy($publicIdWithFolder);
+                }
+            }
+
             Log::error(__CLASS__ . '@' . __FUNCTION__, [
                 'message' => $e->getMessage(),
                 'request' => $request->all(),
@@ -274,9 +351,41 @@ class ProductController extends Controller
                 ], Response::HTTP_NOT_FOUND);
             }
 
+            $product->status = 'inactive';
+            $product->save();
             $product->delete();
 
             return response()->noContent();
+        } catch (\Exception $e) {
+            Log::error(__CLASS__ . '@' . __FUNCTION__, [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'message' => 'Lỗi server'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function restore(string $id)
+    {
+        try {
+            $product = Product::query()->withTrashed()->find($id);
+
+            if (!$product) {
+                return response()->json([
+                    'message' => 'Không có dữ liệu'
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            if ($product->trashed()) {
+                $product->restore();
+
+                return response()->json([
+                    'message' => 'Khôi phục dữ liệu thành công'
+                ], Response::HTTP_OK);
+            }
         } catch (\Exception $e) {
             Log::error(__CLASS__ . '@' . __FUNCTION__, [
                 'message' => $e->getMessage(),

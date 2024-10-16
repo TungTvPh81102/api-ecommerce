@@ -35,6 +35,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // API PRODUCTS
     Route::apiResource('products', \App\Http\Controllers\API\ProductController::class);
+    Route::get('products/restore/{product}', [\App\Http\Controllers\API\ProductController::class, 'restore']);
+
 
     // API COUPON
     Route::apiResource('coupons', \App\Http\Controllers\API\CouponController::class);
