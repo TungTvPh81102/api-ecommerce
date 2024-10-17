@@ -23,7 +23,7 @@ class UserController extends Controller
     }
 
     /**
-     * Danh sách người dùng trên hệ thôn
+     * [GET]: /api/users - Danh sách người dùng trên hệ thống
      */
     public function index()
     {
@@ -53,11 +53,7 @@ class UserController extends Controller
     }
 
     /**
-     * Thêm người dùng mới vào hệ thống
-     *
-     * - Xử lý dữ liệu người dùng
-     * - Kiểm tra và upload ảnh lên cloudinary nếu có
-     * - Tạo người dùng trong CSDL
+     * [POST]: /api/users - Thêm mới người dùng
      */
     public function store(StoreUserRequest $request)
     {
@@ -120,7 +116,7 @@ class UserController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * [GET]: /api/users/{id} - Thông tin nguười dùng
      */
     public function show(string $id)
     {
@@ -150,7 +146,7 @@ class UserController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * [POST]: /api/users/{id}/update - Cập nhật thông tin ngời dun
      */
     public function update(UpdateUserRequest $request, string $id)
     {
@@ -225,7 +221,7 @@ class UserController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * [DELETE]: /api/users/{id} - Xoá người dùng - Sort Delete
      */
     public function destroy(string $id)
     {
@@ -255,6 +251,9 @@ class UserController extends Controller
         }
     }
 
+    /**
+     * [GET]: /api/users/restore/{id} - Khôi phục dữ liệu
+     */
     public function restore(string $id)
     {
         try {
@@ -292,6 +291,9 @@ class UserController extends Controller
         }
     }
 
+    /**
+     * [DELETE]: /api/users/{id} - Xoá người dùng khỏi hệ thống
+     */
     public function forceDestroy(string $id)
     {
         try {

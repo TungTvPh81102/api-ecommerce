@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 class CategoryController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * [GET]: /api/categories - Danh sách danh mục
      */
     public function index()
     {
@@ -47,7 +47,7 @@ class CategoryController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * [POST]: /api/categories - Thêm mới danh mục
      */
     public function store(StoreCategoryRequest $request)
     {
@@ -82,7 +82,7 @@ class CategoryController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * [GET]: /api/categories/{id} - Chi tiết danh mục
      */
     public function show(string $id)
     {
@@ -114,7 +114,7 @@ class CategoryController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * [PUT]: /api/categories/{id}/update - Cập nhật danh mục
      */
     public function update(UpdateCategoryRequest $request, string $id)
     {
@@ -164,7 +164,7 @@ class CategoryController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * [DELETE]: /api/categories/{id} - Xoá danh mục
      */
     public function destroy(string $id)
     {
