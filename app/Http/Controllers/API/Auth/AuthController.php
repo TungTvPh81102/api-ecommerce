@@ -14,6 +14,9 @@ use Illuminate\Http\Response;
 
 class AuthController extends Controller
 {
+    /**
+     * [POST]: /api/auth/register - Đăng ký tài khoản
+     */
     public function register(RegisterRequest $request)
     {
         try {
@@ -53,6 +56,9 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * [POST]: /api/auth/login - Đăng nhập
+     */
     public function login(LoginRequest $request)
     {
         try {
@@ -93,6 +99,9 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * [POST]: /api/auth/logout - Đăng xuất
+     */
     public function logout(Request $request)
     {
         try {
